@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparativo de Formato do Rosto</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;min-height:100vh;display:flex;justify-content:center;padding:2rem 1rem}
+.wrap{max-width:480px;width:100%}
+.card{background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 2px 16px rgba(0,0,0,.08);margin-bottom:1rem}
+.title{font-size:19px;font-weight:700;margin-bottom:.75rem}
+.note{background:#f7f5ff;border:1px solid #e3ddff;border-radius:10px;padding:.9rem 1rem;font-size:13px;color:#444;line-height:1.7;margin-bottom:1rem}
+.note b{display:block;margin-bottom:.4rem;color:#111}
+.note .item{display:flex;gap:8px;margin-top:.5rem}
+.note .item span:first-child{color:#999;min-width:14px}
+.ubox{border:1.5px dashed #bbb;border-radius:12px;padding:2rem;text-align:center;cursor:pointer;background:#f9f9f9}
+.ubox:hover{background:#f0f0f0}
+.ubox p{font-size:14px;color:#555;margin-top:.4rem}
+.ubox small{font-size:12px;color:#999}
+#fi{display:none}
+.status{font-size:13px;padding:.6rem .85rem;border-radius:8px;margin-bottom:.75rem;display:none}
+.status.loading{background:#fffbe6;color:#806600;border:1px solid #f0e68c;display:block}
+.status.error{background:#fff0f0;color:#c00;display:block}
+
+.compare-area{display:none}
+.compare-stage{position:relative;background:#fafafa;border:1px solid #e8e8e8;border-radius:12px;aspect-ratio:200/240;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.compare-stage canvas{position:absolute;width:100%;height:100%;object-fit:cover;top:0;left:0}
+.compare-stage svg{width:100%;height:100%;position:absolute;top:0;left:0}
+.shape-path{fill:#2f7bc4;fill-opacity:.22;stroke:#2f7bc4;stroke-width:1.5;transition:d .25s ease}
+.user-path{fill:none;stroke:#fff;stroke-width:1.3;opacity:.95;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 4px rgba(255,255,255,.85)) drop-shadow(0 0 1px rgba(0,0,0,.5));display:none}
+.nav-row{display:flex;align-items:center;justify-content:center;gap:1.1rem;margin-top:1rem}
+.nav-btn{width:38px;height:38px;border-radius:50%;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.nav-btn:hover{background:#f2f2f2}
+.shape-label{text-align:center;min-width:100px}
+.shape-label .name{font-size:15px;font-weight:600;margin:0}
+.shape-label .count{font-size:12px;color:#999;margin-top:2px}
+.dots{display:flex;justify-content:center;gap:6px;margin-top:.7rem}
+.dot{width:6px;height:6px;border-radius:50%;background:#ddd}
+.dot.active{background:#2f7bc4}
+.confirm-btn{width:100%;margin-top:1.25rem;background:#2f7bc4;color:#fff;border:none;border-radius:10px;font-weight:600;font-size:15px;padding:.75rem;cursor:pointer}
+.confirm-btn:hover{background:#2569ac}
+.confirm-btn:disabled{background:#bbb;cursor:default}
+.newphoto-btn{width:100%;margin-top:.6rem;background:transparent;color:#666;border:1px solid #ddd;border-radius:10px;font-weight:500;font-size:13.5px;padding:.6rem;cursor:pointer}
+.newphoto-btn:hover{background:#f5f5f5}
+.result-box{display:none;background:#eef9f0;border:1px solid #cdeed5;border-radius:10px;padding:1rem;margin-top:1rem;text-align:center}
+.result-box .name{font-size:17px;font-weight:700;color:#1d7a37}
+.loading-mp{text-align:center;padding:2rem;display:none}
+.spin{width:28px;height:28px;border:2px solid #eee;border-top-color:#111;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.shape-suggestion{display:none;background:#eef5fc;border:1px solid #cfe1f4;border-radius:10px;padding:.9rem 1rem;margin-bottom:1rem;font-size:13px;color:#335;line-height:1.55}
+.shape-suggestion b{color:#183d63}
+.shape-suggestion .why{display:block;margin-top:.45rem;color:#667}
+.shape-suggestion .confidence{display:inline-block;margin-top:.45rem;font-size:11px;font-weight:700;color:#2f7bc4;background:#fff;border:1px solid #d7e6f5;border-radius:999px;padding:2px 8px}
+.shape-label .suggested-mini{display:none;font-size:10px;font-weight:700;background:#fff3da;color:#8a5a00;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle}
+.shape-label.suggested .suggested-mini{display:inline-block}
+
+.mode-toggle{display:flex;background:#f0f0f0;border-radius:10px;padding:3px;margin-bottom:1rem}
+.mode-btn{flex:1;border:none;background:transparent;padding:.55rem 0;font-size:13.5px;font-weight:600;color:#777;border-radius:8px;cursor:pointer;font-family:inherit}
+.mode-btn.active{background:#fff;color:#2f7bc4;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.grid-view{display:none}
+.grid-wrap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid-cell{cursor:pointer;border-radius:12px;border:2px solid transparent;padding:4px;transition:border-color .15s, background .15s}
+.grid-cell:hover{background:#f7f7f7}
+.grid-cell.selected{border-color:#2f7bc4;background:#eef5fc}
+.grid-stage{position:relative;background:#fafafa;border:1px solid #e8e8e8;border-radius:10px;aspect-ratio:200/240;overflow:hidden}
+.grid-stage canvas{position:absolute;width:100%;height:100%;object-fit:cover;top:0;left:0}
+.grid-stage svg{width:100%;height:100%;position:absolute;top:0;left:0}
+.grid-label{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:.45rem;font-size:13px;font-weight:600;color:#333}
+.check-badge{display:none;width:16px;height:16px;border-radius:50%;background:#2f7bc4;color:#fff;font-size:11px;align-items:center;justify-content:center}
+.grid-cell.selected .check-badge{display:flex}
+.grid-hint{font-size:12.5px;color:#888;text-align:center;margin-bottom:.85rem}
+.shape-suggest-tag{display:none;font-size:10px;font-weight:700;background:#fff3da;color:#8a5a00;padding:1px 6px;border-radius:8px;margin-left:2px}
+.grid-cell.suggested .shape-suggest-tag{display:inline-block}
+
+.suggest-tag{font-size:10px;font-weight:700;background:#fff3da;color:#8a5a00;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;display:none}
+.contrast-area{margin-top:1.25rem}
+.contrast-title{font-size:17px;font-weight:700;margin-bottom:.3rem}
+.contrast-sub{font-size:13px;color:#666;line-height:1.55;margin-bottom:1rem}
+.contrast-photos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.contrast-photo-wrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid #e8e8e8;aspect-ratio:200/240;background:#fafafa}
+.contrast-photo-wrap canvas{width:100%;height:100%;object-fit:cover;display:block}
+.contrast-photo-wrap.bw canvas{filter:grayscale(100%)}
+.photo-tag{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:2px 7px;border-radius:6px}
+.contrast-banner{background:#fff8e6;border:1px solid #ffe2a8;border-radius:10px;padding:.75rem .9rem;font-size:13px;color:#6b4e00;line-height:1.6;margin-bottom:1rem;display:none}
+.contrast-banner b{color:#1d1d1d}
+.contrast-options{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.contrast-opt{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:2px solid #eee;border-radius:10px;padding:.7rem .9rem;background:#fff;cursor:pointer;font-family:inherit}
+.contrast-opt:hover{background:#fafafa}
+.contrast-opt.selected{border-color:#2f7bc4;background:#eef5fc}
+.opt-title{font-weight:700;font-size:14px;color:#222}
+.opt-desc{font-size:12px;color:#777;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <div class="title">Qual formato mais combina com você?</div>
+    <div class="note">
+      <b>Antes de começar, dois pontos importantes</b>
+      <div class="item"><span>1</span><span>Essa etapa pede para você comparar e escolher porque nenhum algoritmo enxerga seu rosto melhor que você. A ideia é evitar uma classificação automática que pareça "certa" nos números mas não combine com o que você vê no espelho.</span></div>
+      <div class="item"><span>2</span><span>Você vai ver 6 formatos, não 8. Deixamos de fora o triangular invertido e o retangular, porque na prática eles se confundem muito com coração e quadrado — incluí-los só tornaria a escolha mais difícil sem ajudar na sugestão de armação.</span></div>
+    </div>
+
+    <div class="ubox" id="ubox">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <p>Clique para escolher uma foto</p>
+      <small>Foto de frente, boa iluminação, cabelo para trás</small>
+    </div>
+    <input type="file" id="fi" accept="image/*">
+    <div class="status" id="status"></div>
+    <div class="loading-mp" id="loadingMp"><div class="spin"></div></div>
+  </div>
+
+  <div class="card compare-area" id="compareArea">
+    <div class="mode-toggle" id="modeToggle">
+      <button class="mode-btn active" data-mode="carousel">Um por vez</button>
+      <button class="mode-btn" data-mode="grid">Lado a lado</button>
+    </div>
+
+    <div class="shape-suggestion" id="shapeSuggestionBox"></div>
+
+    <div class="carousel-view" id="carouselView">
+      <div class="compare-stage" id="stage">
+        <canvas id="photoCanvas"></canvas>
+        <svg viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+          <path class="shape-path" id="shapePath" d=""/>
+        </svg>
+        <svg viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+          <path class="user-path" id="userPath" d=""/>
+        </svg>
+      </div>
+      <div class="nav-row">
+        <button class="nav-btn" id="btnPrev">‹</button>
+        <div class="shape-label" id="shapeLabel">
+          <p class="name" id="shapeName">Oval <span class="suggested-mini">sugestão</span></p>
+          <p class="count" id="shapeCount">1 de 6</p>
+        </div>
+        <button class="nav-btn" id="btnNext">›</button>
+      </div>
+      <div class="dots" id="dots"></div>
+      <button class="confirm-btn" id="btnConfirm">Este é o meu formato</button>
+    </div>
+
+    <div class="grid-view" id="gridView">
+      <p class="grid-hint">Toque no formato que mais parece com o seu rosto</p>
+      <div class="grid-wrap" id="gridWrap"></div>
+    </div>
+
+    <button class="newphoto-btn" id="btnNewPhoto">← Usar outra foto</button>
+    <div class="result-box" id="resultBox">
+      <p style="font-size:13px;color:#555;margin-bottom:2px">Formato selecionado</p>
+      <p class="name" id="resultName"></p>
+    </div>
+  </div>
+
+  <div class="card contrast-area" id="contrastArea" style="display:none">
+    <div class="contrast-title">Agora, vamos identificar seu contraste</div>
+    <div class="contrast-sub">Compare sua foto a cores com a versão em preto e branco. Quanto mais diferente a pele, a sobrancelha e os olhos aparecem entre si em P&B, maior o seu contraste.</div>
+    <div class="contrast-photos">
+      <div class="contrast-photo-wrap">
+        <canvas id="colorCanvas"></canvas>
+        <span class="photo-tag">Cor</span>
+      </div>
+      <div class="contrast-photo-wrap bw">
+        <canvas id="grayCanvas"></canvas>
+        <span class="photo-tag">Preto e branco</span>
+      </div>
+    </div>
+    <div class="contrast-banner" id="contrastBanner"></div>
+    <div class="contrast-options" id="contrastOptions">
+      <button class="contrast-opt" data-level="baixo">
+        <span class="opt-title">Baixo<span class="suggest-tag">sugestão</span></span>
+        <span class="opt-desc">Pele, sobrancelha/cabelo e olhos com tons próximos entre si</span>
+      </button>
+      <button class="contrast-opt" data-level="medio">
+        <span class="opt-title">Médio<span class="suggest-tag">sugestão</span></span>
+        <span class="opt-desc">Diferença perceptível, mas moderada, entre os tons</span>
+      </button>
+      <button class="contrast-opt" data-level="alto">
+        <span class="opt-title">Alto<span class="suggest-tag">sugestão</span></span>
+        <span class="opt-desc">Pele, sobrancelha/cabelo e olhos bem diferentes entre si</span>
+      </button>
+    </div>
+    <div class="result-box" id="contrastResultBox">
+      <p style="font-size:13px;color:#555;margin-bottom:2px">Contraste selecionado</p>
+      <p class="name" id="contrastResultName"></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SHAPES = {
+  oval:        { label:'Oval', path:'M 108.5,11.3 Q 100.1,11.3 91.7,11.3 Q 83.3,11.3 75.4,14.0 Q 67.5,16.8 60.3,21.0 Q 53.1,25.2 47.3,31.2 Q 41.4,37.2 36.6,44.0 Q 31.7,50.8 28.6,58.6 Q 25.4,66.3 24.0,74.5 Q 22.6,82.8 22.3,91.2 Q 22.0,99.6 22.0,108.0 Q 22.0,116.4 23.1,124.7 Q 24.3,132.9 26.1,141.1 Q 28.0,149.3 30.6,157.3 Q 33.2,165.3 36.6,172.9 Q 40.1,180.6 44.2,187.9 Q 48.4,195.2 53.6,201.8 Q 58.8,208.4 64.1,214.9 Q 69.4,221.4 76.6,225.1 Q 83.8,228.7 92.2,228.7 Q 100.6,228.7 108.3,228.7 Q 116.0,228.7 123.2,225.2 Q 130.5,221.6 135.8,215.1 Q 141.1,208.6 146.3,202.0 Q 151.5,195.4 155.7,188.1 Q 159.8,180.8 163.3,173.2 Q 166.8,165.5 169.3,157.5 Q 171.9,149.6 173.8,141.4 Q 175.7,133.2 176.8,124.9 Q 178.0,116.6 178.0,108.2 Q 178.0,99.8 177.7,91.4 Q 177.5,83.1 176.1,74.8 Q 174.7,66.5 171.5,58.8 Q 168.4,51.0 163.6,44.2 Q 158.8,37.4 153.0,31.4 Q 147.2,25.4 139.9,21.1 Q 132.7,16.9 124.8,14.1 Q 116.9,11.3 108.5,11.3 Z' },
+  redondo:     { label:'Redondo', path:'M 77.8,13.2 Q 85.3,11.3 92.9,11.3 Q 100.6,11.3 107.7,11.3 Q 114.7,11.3 122.2,13.2 Q 129.7,15.2 137.2,17.1 Q 144.7,19.0 151.6,22.7 Q 158.5,26.6 163.5,33.4 Q 168.4,40.4 171.2,49.1 Q 173.9,57.6 175.8,66.7 Q 177.7,75.6 178.4,84.9 Q 179.2,94.0 179.8,103.3 Q 180.4,112.4 180.5,121.7 Q 180.6,130.8 179.1,139.9 Q 177.3,148.8 174.6,157.6 Q 171.7,166.2 168.0,174.8 Q 164.4,183.2 159.5,190.8 Q 154.7,198.2 148.7,204.4 Q 142.9,210.6 136.0,214.9 Q 129.1,219.1 122.1,222.8 Q 115.0,226.7 107.5,227.6 Q 100.0,228.7 92.5,227.6 Q 85.0,226.7 77.9,222.8 Q 70.9,219.1 64.0,214.9 Q 57.1,210.6 51.3,204.4 Q 45.3,198.2 40.5,190.8 Q 35.6,183.2 32.0,174.8 Q 28.3,166.2 25.4,157.6 Q 22.7,148.8 20.9,139.9 Q 19.4,130.8 19.5,121.7 Q 19.6,112.4 20.2,103.3 Q 20.8,94.0 21.6,84.9 Q 22.3,75.6 24.2,66.7 Q 26.1,57.6 28.8,49.1 Q 31.6,40.4 36.5,33.4 Q 41.5,26.6 48.4,22.7 Q 55.3,19.0 62.8,17.1 Q 70.3,15.2 77.8,13.2 Z' },
+  quadrado:    { label:'Quadrado', path:'M 90.4,11.7 Q 100.0,11.3 109.6,11.7 Q 119.2,12.1 127.8,13.4 Q 136.4,14.7 144.6,17.9 Q 152.7,21.1 159.5,26.6 Q 166.2,32.1 170.9,39.4 Q 175.5,46.8 177.2,55.4 Q 178.8,63.9 178.8,72.6 Q 178.8,81.5 178.8,90.2 Q 178.8,99.0 178.8,107.8 Q 178.8,116.6 178.8,125.3 Q 178.8,134.2 178.8,142.9 Q 178.8,151.6 178.0,160.3 Q 177.3,169.1 173.1,176.7 Q 169.0,184.3 163.1,190.9 Q 157.2,197.3 150.7,203.2 Q 144.2,209.0 137.9,215.2 Q 131.6,221.3 123.6,224.6 Q 115.7,228.0 107.8,228.4 Q 100.0,228.7 92.2,228.4 Q 84.3,228.0 76.4,224.6 Q 68.4,221.3 62.1,215.2 Q 55.8,209.0 49.3,203.2 Q 42.8,197.3 36.9,190.9 Q 31.0,184.3 26.9,176.7 Q 22.7,169.1 22.0,160.3 Q 21.2,151.6 21.2,142.9 Q 21.2,134.2 21.2,125.3 Q 21.2,116.6 21.2,107.8 Q 21.2,99.0 21.2,90.2 Q 21.2,81.5 21.2,72.6 Q 21.2,63.9 22.8,55.4 Q 24.5,46.8 29.1,39.4 Q 33.8,32.1 40.5,26.6 Q 47.3,21.1 55.4,17.9 Q 63.6,14.7 72.2,13.4 Q 80.8,12.1 90.4,11.7 Z' },
+  coracao:     { label:'Coração', path:'M 57.8,12.7 Q 66.1,11.3 74.5,11.3 Q 83.0,11.3 91.5,11.3 Q 100.0,11.3 108.5,11.3 Q 117.0,11.3 125.5,11.3 Q 133.9,11.3 142.2,12.7 Q 150.5,14.1 156.7,19.9 Q 163.0,25.8 167.4,33.2 Q 171.7,40.5 175.3,48.4 Q 178.7,56.3 181.1,64.5 Q 183.5,72.8 183.9,81.4 Q 184.2,90.2 182.6,98.6 Q 181.0,107.1 178.8,115.5 Q 176.6,123.9 173.9,132.0 Q 171.2,140.2 168.5,148.5 Q 165.9,156.8 162.3,164.6 Q 158.8,172.5 154.4,179.9 Q 150.1,187.4 145.6,194.7 Q 141.0,202.1 135.1,208.2 Q 129.2,214.3 122.7,219.9 Q 116.2,225.4 108.1,227.0 Q 100.0,228.7 91.9,227.0 Q 83.8,225.4 77.3,219.9 Q 70.8,214.3 64.9,208.2 Q 59.0,202.1 54.4,194.7 Q 49.9,187.4 45.6,179.9 Q 41.2,172.5 37.7,164.6 Q 34.1,156.8 31.5,148.5 Q 28.8,140.2 26.1,132.0 Q 23.4,123.9 21.2,115.5 Q 19.0,107.1 17.4,98.6 Q 15.8,90.2 16.1,81.4 Q 16.5,72.8 18.9,64.5 Q 21.3,56.3 24.7,48.4 Q 28.3,40.5 32.6,33.2 Q 37.0,25.8 43.3,19.9 Q 49.5,14.1 57.8,12.7 Z' },
+  diamante:    { label:'Diamante', path:'M 91.6,11.3 Q 100.0,11.3 108.4,11.3 Q 117.0,11.3 125.4,11.3 Q 133.9,11.3 140.9,15.9 Q 148.0,20.3 152.9,27.2 Q 158.0,34.0 160.5,42.1 Q 163.0,50.3 165.8,58.2 Q 168.6,66.2 173.0,73.5 Q 177.4,80.7 180.9,88.4 Q 184.2,96.1 183.4,104.5 Q 182.5,113.0 179.4,120.9 Q 176.2,128.8 173.0,136.7 Q 169.8,144.6 166.9,152.6 Q 163.9,160.6 161.6,168.8 Q 159.1,177.0 155.9,184.8 Q 152.7,192.6 148.4,199.9 Q 144.1,207.2 137.8,213.0 Q 131.6,218.8 124.1,222.5 Q 116.5,226.3 108.2,227.5 Q 100.0,228.7 91.8,227.5 Q 83.5,226.3 75.9,222.5 Q 68.4,218.8 62.2,213.0 Q 55.9,207.2 51.6,199.9 Q 47.3,192.6 44.1,184.8 Q 40.9,177.0 38.4,168.8 Q 36.1,160.6 33.1,152.6 Q 30.2,144.6 27.0,136.7 Q 23.8,128.8 20.6,120.9 Q 17.5,113.0 16.6,104.5 Q 15.8,96.1 19.1,88.4 Q 22.6,80.7 27.0,73.5 Q 31.4,66.2 34.2,58.2 Q 37.0,50.3 39.5,42.1 Q 42.0,34.0 47.1,27.2 Q 52.0,20.3 59.1,15.9 Q 66.1,11.3 74.6,11.3 Q 83.0,11.3 91.6,11.3 Z' },
+  triangular:  { label:'Triangular', path:'M 127.9,12.1 Q 118.8,11.3 109.4,11.3 Q 100.0,11.3 90.6,11.3 Q 81.2,11.3 72.1,12.1 Q 62.9,12.8 55.8,18.1 Q 48.8,23.3 46.4,31.7 Q 44.2,40.1 41.7,48.3 Q 39.3,56.6 37.8,65.1 Q 36.2,73.6 34.6,82.0 Q 33.1,90.5 31.6,99.0 Q 29.9,107.5 27.8,115.9 Q 25.7,124.3 24.0,132.8 Q 22.1,141.4 21.9,150.3 Q 21.7,159.1 23.5,167.8 Q 25.3,176.5 28.8,184.2 Q 32.4,191.9 38.9,196.5 Q 45.5,201.2 52.0,206.0 Q 58.5,210.6 64.5,216.2 Q 70.5,221.7 77.6,224.7 Q 84.7,227.8 92.4,228.2 Q 100.0,228.7 107.6,228.2 Q 115.3,227.8 122.4,224.7 Q 129.5,221.7 135.5,216.2 Q 141.5,210.6 148.0,206.0 Q 154.5,201.2 161.1,196.5 Q 167.6,191.9 171.2,184.2 Q 174.7,176.5 176.5,167.8 Q 178.3,159.1 178.1,150.3 Q 177.9,141.4 176.0,132.8 Q 174.3,124.3 172.2,115.9 Q 170.1,107.5 168.4,99.0 Q 166.9,90.5 165.4,82.0 Q 163.8,73.6 162.2,65.1 Q 160.7,56.6 158.3,48.3 Q 155.8,40.1 153.6,31.7 Q 151.2,23.3 144.2,18.1 Q 137.1,12.8 127.9,12.1 Z' },
+};
+const SHAPE_ORDER = ['oval','redondo','quadrado','coracao','diamante','triangular'];
+let currentIdx = 0;
+let userPathD = '';
+let selectedShape = null;
+let contrastInfo = null;
+let selectedContrast = null;
+let faceProfile = null;
+let shapeSuggestion = null;
+
+// Mesma sequência de pontos do face oval do MediaPipe usada no contorno_rosto.html
+const FACE_OVAL_SEQ = [
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+  397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+  172,  58, 132,  93, 234, 127, 162,  21,  54, 103,  67, 109
+];
+const BROW_L = 65, BROW_R = 295;
+
+let faceLandmarker = null;
+
+async function initMP(){
+  document.getElementById('loadingMp').style.display='block';
+  try {
+    const { FaceLandmarker, FilesetResolver } = await import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+    const fs = await FilesetResolver.forVisionTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    faceLandmarker = await FaceLandmarker.createFromOptions(fs, {
+      baseOptions:{
+        modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate:"GPU"
+      },
+      runningMode:"IMAGE", numFaces:1
+    });
+  } catch(e){
+    setStatus('Erro ao carregar detector facial. Recarregue a página.', 'error');
+  }
+  document.getElementById('loadingMp').style.display='none';
+}
+initMP();
+
+function setStatus(msg,type){
+  const s=document.getElementById('status');
+  s.textContent=msg; s.className='status '+type;
+}
+
+document.getElementById('ubox').addEventListener('click',()=>document.getElementById('fi').click());
+document.getElementById('fi').addEventListener('change', function(){
+  const f=this.files[0]; if(!f) return;
+  if(!faceLandmarker){ setStatus('Aguarde o detector carregar...','error'); return; }
+  const reader=new FileReader();
+  reader.onload = e => { const img=new Image(); img.onload=()=>runAnalysis(img); img.src=e.target.result; };
+  reader.readAsDataURL(f);
+});
+
+let loadedImg = null;
+let cropBox = null; // {x,y,w,h} da região do rosto recortada da foto original, em coords da imagem original
+
+async function runAnalysis(img){
+  setStatus('Detectando pontos faciais...','loading');
+  loadedImg = img;
+  const off=document.createElement('canvas');
+  const sc=Math.min(1,800/img.naturalWidth);
+  off.width=img.naturalWidth*sc; off.height=img.naturalHeight*sc;
+  off.getContext('2d').drawImage(img,0,0,off.width,off.height);
+  const result = await faceLandmarker.detect(off);
+  if(!result.faceLandmarks?.length){
+    setStatus('Nenhum rosto detectado. Tente outra foto de frente.','error');
+    return;
+  }
+  const lms = result.faceLandmarks[0];
+  buildUserPath(lms, off.width, off.height, sc);
+  shapeSuggestion = computeShapeSuggestion(faceProfile);
+  contrastInfo = computeContrast(lms, off.getContext('2d'), off.width, off.height);
+  document.getElementById('status').style.display='none';
+  document.getElementById('ubox').style.display='none';
+  document.getElementById('compareArea').style.display='block';
+  currentIdx = shapeSuggestion ? SHAPE_ORDER.indexOf(shapeSuggestion.best.id) : 0;
+  if(currentIdx < 0) currentIdx = 0;
+  drawPhoto();
+  renderShape();
+  renderShapeSuggestion();
+}
+
+function drawPhotoInto(cv){
+  const sw = cv.offsetWidth, sh = cv.offsetHeight;
+  cv.width = sw; cv.height = sh;
+  const ctx = cv.getContext('2d');
+  if(!cropBox) return;
+  ctx.drawImage(loadedImg, cropBox.x, cropBox.y, cropBox.w, cropBox.h, 0, 0, sw, sh);
+}
+
+function drawPhoto(){
+  drawPhotoInto(document.getElementById('photoCanvas'));
+}
+
+// ───────── Contraste (pele x sobrancelha x olho, medido da luminância — equivalente à foto P&B) ─────────
+function sampleLum(ctx, nx, ny, w, h, radius){
+  // Amostra a luminância média de uma região ao redor do ponto normalizado nx,ny
+  const px = Math.round(nx*w), py = Math.round(ny*h);
+  const sx = Math.max(0, px-radius), sy = Math.max(0, py-radius);
+  const sw = Math.min(w-sx, radius*2+1), sh = Math.min(h-sy, radius*2+1);
+  if(sw<=0 || sh<=0) return 128;
+  const data = ctx.getImageData(sx, sy, sw, sh).data;
+  let lum=0, n=0;
+  for(let i=0; i<data.length; i+=4){
+    lum += 0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2];
+    n++;
+  }
+  return lum/n;
+}
+
+function sampleDarkestLum(ctx, nx, ny, w, h, radius){
+  // Pega a média dos 20% pixels mais escuros da região → captura íris/pupila, ignora esclera e cílios muito escuros
+  const px = Math.round(nx*w), py = Math.round(ny*h);
+  const sx = Math.max(0, px-radius), sy = Math.max(0, py-radius);
+  const sw = Math.min(w-sx, radius*2+1), sh = Math.min(h-sy, radius*2+1);
+  if(sw<=0 || sh<=0) return 128;
+  const data = ctx.getImageData(sx, sy, sw, sh).data;
+  const lums = [];
+  for(let i=0; i<data.length; i+=4)
+    lums.push(0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]);
+  lums.sort((a,b)=>a-b);
+  // Descarta os 5% mais escuros (cílios/sombra) e pega os próximos 25% (íris)
+  const skip = Math.floor(lums.length*0.05);
+  const take = Math.max(1, Math.floor(lums.length*0.25));
+  const slice = lums.slice(skip, skip+take);
+  return slice.reduce((a,b)=>a+b,0)/slice.length;
+}
+
+function computeContrast(lms, ctx, w, h){
+  // Pele: testa + bochechas — patch grande (raio 8) pra médias estáveis
+  const lSkin = [50, 280, 9, 147, 366]
+    .map(i => sampleLum(ctx, lms[i].x, lms[i].y, w, h, 8))
+    .reduce((a,b)=>a+b,0) / 5;
+
+  // Sobrancelha: referência do cabelo — patch médio
+  const lBrow = [65, 295, 70, 300]
+    .map(i => sampleLum(ctx, lms[i].x, lms[i].y, w, h, 5))
+    .reduce((a,b)=>a+b,0) / 4;
+
+  // Olho: pega os pixels mais escuros da região da íris (evita esclera branca e sombra de cílio)
+  const eyeL = sampleDarkestLum(ctx, lms[159].x, lms[159].y, w, h, 7);
+  const eyeR = sampleDarkestLum(ctx, lms[386].x, lms[386].y, w, h, 7);
+  const lEye = (eyeL + eyeR) / 2;
+
+  // O spread é a diferença entre o elemento mais claro e o mais escuro dos três, normalizado 0-1
+  const maxL = Math.max(lSkin, lBrow, lEye);
+  const minL = Math.min(lSkin, lBrow, lEye);
+  const spread = (maxL - minL) / 255;
+
+  // Limiares calibrados com fotos reais (13 fotos, 3 categorias).
+  // Alto fica bem separado (>0.45). A fronteira baixo/médio é intrinsecamente ambígua
+  // (pele clara+loiro e pele morena+castanho têm spreads muito próximos) — por isso
+  // esse resultado sempre deve ser tratado como sugestão, não decisão.
+  let level;
+  if(spread < 0.28) level = 'baixo';
+  else if(spread < 0.45) level = 'medio';
+  else level = 'alto';
+
+  return { level, spread, lSkin: Math.round(lSkin), lBrow: Math.round(lBrow), lEye: Math.round(lEye) };
+}
+
+function buildUserPath(lms, offW, offH, sc){
+  // Extrair pontos do contorno facial (mesma lógica do contorno_rosto.html)
+  // lms[i].x/y são normalizados (0..1) relativos à imagem offscreen (off.width x off.height)
+  const pt = i => ({x: lms[i].x, y: lms[i].y});
+  const raw = FACE_OVAL_SEQ.map(i => pt(i));
+
+  const pTop = pt(10);
+  const pBrowL = pt(BROW_L), pBrowR = pt(BROW_R);
+  const browMidY = (pBrowL.y + pBrowR.y) / 2;
+  const foreheadDetected = browMidY - pTop.y;
+  const foreheadLift = foreheadDetected * 0.75;
+
+  let topIdx = 0;
+  raw.forEach((p,i) => { if(p.y < raw[topIdx].y) topIdx = i; });
+  const n = raw.length;
+  const window = 8;
+  const pts = raw.map((p,i) => {
+    const d = Math.min(Math.abs(i-topIdx), Math.abs(i-topIdx+n), Math.abs(i-topIdx-n));
+    if(d <= window){
+      const factor = Math.pow(Math.cos((d/window)*(Math.PI/2)), 1.5);
+      return {x:p.x, y:p.y - foreheadLift*factor};
+    }
+    return p;
+  });
+
+  // Bounding box em coordenadas normalizadas (0..1)
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const w = maxX-minX, h = maxY-minY;
+
+  // Margem extra ao redor do rosto para a foto não ficar "colada" nas bordas
+  const marginX = w*0.18, marginY = h*0.12;
+
+  // cropBox em pixels da imagem ORIGINAL (loadedImg), não da offscreen reduzida
+  const fullScale = 1/sc; // off->original
+  cropBox = {
+    x: (minX-marginX)*offW*fullScale,
+    y: (minY-marginY)*offH*fullScale,
+    w: (w+marginX*2)*offW*fullScale,
+    h: (h+marginY*2)*offH*fullScale
+  };
+
+  // Mapear pontos do contorno para o viewBox 200x240, considerando a MESMA
+  // região (com margem) que será exibida como foto de fundo
+  const regionMinX = minX-marginX, regionMinY = minY-marginY;
+  const regionW = w+marginX*2, regionH = h+marginY*2;
+
+  const normPts = pts.map(p => ({
+    x: ((p.x-regionMinX)/regionW)*200,
+    y: ((p.y-regionMinY)/regionH)*240
+  }));
+
+  let d = `M ${(normPts[0].x+normPts[n-1].x)/2},${(normPts[0].y+normPts[n-1].y)/2} `;
+  for(let i=0;i<n;i++){
+    const c=normPts[i], nx=normPts[(i+1)%n];
+    const mx=(c.x+nx.x)/2, my=(c.y+nx.y)/2;
+    d += `Q ${c.x.toFixed(1)},${c.y.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)} `;
+  }
+  d += 'Z';
+  userPathD = d;
+  faceProfile = buildFaceProfile(normPts);
+}
+
+function widthAtY(pts, y){
+  const xs = [];
+  for(let i=0;i<pts.length;i++){
+    const a = pts[i], b = pts[(i+1)%pts.length];
+    if((a.y<=y && b.y>y) || (b.y<=y && a.y>y)){
+      const t = (y-a.y)/(b.y-a.y);
+      xs.push(a.x + t*(b.x-a.x));
+    }
+  }
+  if(xs.length < 2) return 0;
+  return Math.max(...xs) - Math.min(...xs);
+}
+
+function buildFaceProfile(pts){
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const minX=Math.min(...xs), maxX=Math.max(...xs);
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  const h = maxY-minY;
+  const w = maxX-minX;
+  const at = pct => widthAtY(pts, minY + h*pct);
+  const top = at(.18);
+  const forehead = at(.28);
+  const cheek = Math.max(at(.40), at(.47), at(.54), w*.7);
+  const jaw = at(.72);
+  const lowJaw = at(.82);
+  const chin = at(.91);
+  return {
+    aspect: h / Math.max(cheek, 1),
+    top: top / cheek,
+    forehead: forehead / cheek,
+    jaw: jaw / cheek,
+    lowJaw: lowJaw / cheek,
+    chin: chin / cheek
+  };
+}
+
+function templateScore(profile, tpl){
+  const weights = {aspect:1.15, forehead:1.1, jaw:1.2, lowJaw:.9, chin:1.05, top:.65};
+  let total = 0;
+  Object.keys(weights).forEach(k => {
+    total += Math.pow((profile[k] || 0) - tpl[k], 2) * weights[k];
+  });
+  return total;
+}
+
+function computeShapeSuggestion(profile){
+  if(!profile) return null;
+  const templates = {
+    oval:       {aspect:1.45, top:.72, forehead:.88, jaw:.78, lowJaw:.60, chin:.36},
+    redondo:    {aspect:1.25, top:.78, forehead:.91, jaw:.86, lowJaw:.70, chin:.46},
+    quadrado:   {aspect:1.32, top:.82, forehead:.93, jaw:.94, lowJaw:.82, chin:.58},
+    coracao:    {aspect:1.42, top:.91, forehead:1.00, jaw:.72, lowJaw:.52, chin:.30},
+    diamante:   {aspect:1.50, top:.65, forehead:.78, jaw:.70, lowJaw:.54, chin:.33},
+    triangular: {aspect:1.34, top:.62, forehead:.74, jaw:1.00, lowJaw:.86, chin:.55}
+  };
+  const ranking = SHAPE_ORDER.map(id => ({ id, score: templateScore(profile, templates[id]) }))
+    .sort((a,b) => a.score-b.score);
+  const best = ranking[0];
+  const second = ranking[1];
+  const gap = second ? second.score - best.score : 0;
+  let confidence = 'baixa';
+  if(gap > .075) confidence = 'alta';
+  else if(gap > .035) confidence = 'média';
+  return { best, second, ranking, confidence, gap };
+}
+
+function renderShapeSuggestion(){
+  const box = document.getElementById('shapeSuggestionBox');
+  if(!box || !shapeSuggestion){ box.style.display='none'; return; }
+  const best = SHAPES[shapeSuggestion.best.id].label;
+  const second = shapeSuggestion.second ? SHAPES[shapeSuggestion.second.id].label : '';
+  const confidenceMap = {baixa:'confiança baixa', média:'confiança média', alta:'confiança alta'};
+  const altText = shapeSuggestion.confidence === 'baixa' && second
+    ? ` O segundo formato mais próximo foi <b>${second}</b>, então vale comparar os dois com calma.`
+    : '';
+  box.innerHTML = `Pela análise da foto, o formato mais provável parece ser <b>${best}</b>.${altText}<span class="why">Use isso como ponto de partida: formato de rosto tem nuances e a sua escolha visual continua sendo a decisão final.</span><span class="confidence">${confidenceMap[shapeSuggestion.confidence]}</span>`;
+  box.style.display = 'block';
+}
+
+// Bounding box de referência das silhuetas originais (todas usam a mesma área útil)
+const SHAPE_BBOX = {x0:22, y0:6.9, x1:178, y1:233.1}; // aprox. da silhueta 'oval', usada como referência geral
+
+// Caixa interna onde o ROSTO (sem a margem) realmente cai dentro do viewBox 200x240.
+// Precisa espelhar EXATAMENTE marginX/marginY usados em buildUserPath, senão a
+// silhueta do formato fica maior ou menor que o rosto detectado.
+const FACE_MARGIN_X = 0.18, FACE_MARGIN_Y = 0.12;
+const FACE_BOX = {
+  x0: (FACE_MARGIN_X/(1+2*FACE_MARGIN_X)) * 200,
+  x1: ((FACE_MARGIN_X+1)/(1+2*FACE_MARGIN_X)) * 200,
+  y0: (FACE_MARGIN_Y/(1+2*FACE_MARGIN_Y)) * 240,
+  y1: ((FACE_MARGIN_Y+1)/(1+2*FACE_MARGIN_Y)) * 240
+};
+
+function remapPath(d, fromBox, toBox){
+  // Reescala todos os números de coordenada em um path 'd' de fromBox para toBox
+  // Funciona em pares (x,y) sequenciais nos comandos M/Q/L
+  const scaleX = (toBox.x1-toBox.x0)/(fromBox.x1-fromBox.x0);
+  const scaleY = (toBox.y1-toBox.y0)/(fromBox.y1-fromBox.y0);
+  let i=0, nums=[];
+  const tokens = d.match(/[MQLZ]|-?\d+\.?\d*/g);
+  let out = '';
+  let cmd = '';
+  let coordBuffer = [];
+  function flush(){
+    while(coordBuffer.length>=2){
+      const x = parseFloat(coordBuffer.shift());
+      const y = parseFloat(coordBuffer.shift());
+      const nx = toBox.x0 + (x-fromBox.x0)*scaleX;
+      const ny = toBox.y0 + (y-fromBox.y0)*scaleY;
+      out += `${nx.toFixed(1)},${ny.toFixed(1)} `;
+    }
+  }
+  tokens.forEach(tok => {
+    if(/^[MQLZ]$/.test(tok)){
+      flush();
+      out += tok+' ';
+      cmd = tok;
+    } else {
+      coordBuffer.push(tok);
+    }
+  });
+  flush();
+  return out.trim();
+}
+
+function renderShape(){
+  const id = SHAPE_ORDER[currentIdx];
+  const shape = SHAPES[id];
+  // Remapear a silhueta para a MESMA região interna onde o rosto cai (descontando a margem)
+  const remapped = remapPath(shape.path, SHAPE_BBOX, FACE_BOX);
+  document.getElementById('shapePath').setAttribute('d', remapped);
+  document.getElementById('userPath').setAttribute('d', userPathD);
+  const isSuggested = shapeSuggestion?.best?.id === id;
+  document.getElementById('shapeLabel').classList.toggle('suggested', isSuggested);
+  document.getElementById('shapeName').innerHTML = `${shape.label} <span class="suggested-mini">sugestão</span>`;
+  document.getElementById('shapeCount').textContent = `${currentIdx+1} de ${SHAPE_ORDER.length}`;
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  SHAPE_ORDER.forEach((_,i) => {
+    const dot = document.createElement('span');
+    dot.className = 'dot' + (i===currentIdx ? ' active' : '');
+    dots.appendChild(dot);
+  });
+}
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  currentIdx = (currentIdx - 1 + SHAPE_ORDER.length) % SHAPE_ORDER.length;
+  renderShape();
+});
+document.getElementById('btnNext').addEventListener('click', () => {
+  currentIdx = (currentIdx + 1) % SHAPE_ORDER.length;
+  renderShape();
+});
+document.getElementById('btnConfirm').addEventListener('click', () => {
+  selectedShape = SHAPE_ORDER[currentIdx];
+  showResult(selectedShape);
+});
+document.getElementById('btnNewPhoto').addEventListener('click', resetToUpload);
+
+function showResult(id){
+  document.getElementById('resultName').textContent = SHAPES[id].label;
+  document.getElementById('resultBox').style.display = 'block';
+  revealContrastStage();
+}
+
+// ───────── Etapa de contraste ─────────
+function revealContrastStage(){
+  const area = document.getElementById('contrastArea');
+  area.style.display = 'block';
+  drawPhotoInto(document.getElementById('colorCanvas'));
+  drawPhotoInto(document.getElementById('grayCanvas'));
+  renderContrastSuggestion();
+}
+
+function renderContrastSuggestion(){
+  if(!contrastInfo) return;
+  const labelMap = {baixo:'Baixo', medio:'Médio', alto:'Alto'};
+  const banner = document.getElementById('contrastBanner');
+  banner.style.display = 'block';
+  banner.innerHTML = `Pela análise da sua foto, seu contraste é provavelmente <b>${labelMap[contrastInfo.level]}</b> — mas veja você mesma nas fotos acima e escolha o que achar mais correto.`;
+
+  document.querySelectorAll('.contrast-opt').forEach(btn => {
+    const isSuggested = btn.dataset.level === contrastInfo.level;
+    btn.querySelector('.suggest-tag').style.display = isSuggested ? 'inline-block' : 'none';
+  });
+
+  // pré-seleciona a sugestão, mas a pessoa pode trocar livremente
+  selectContrast(contrastInfo.level);
+}
+
+function selectContrast(level){
+  selectedContrast = level;
+  document.querySelectorAll('.contrast-opt').forEach(b => b.classList.toggle('selected', b.dataset.level===level));
+  const labelMap = {baixo:'Baixo', medio:'Médio', alto:'Alto'};
+  document.getElementById('contrastResultName').textContent = labelMap[level];
+  document.getElementById('contrastResultBox').style.display = 'block';
+}
+
+document.querySelectorAll('.contrast-opt').forEach(btn => {
+  btn.addEventListener('click', () => selectContrast(btn.dataset.level));
+});
+
+// ───────── Modo "Lado a lado" (grade com todos os formatos) ─────────
+let currentMode = 'carousel';
+let gridBuilt = false;
+
+function buildGrid(){
+  const wrap = document.getElementById('gridWrap');
+  wrap.innerHTML = '';
+  SHAPE_ORDER.forEach(id => {
+    const shape = SHAPES[id];
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell';
+    cell.dataset.shape = id;
+    cell.innerHTML = `
+      <div class="grid-stage">
+        <canvas></canvas>
+        <svg viewBox="0 0 200 240" preserveAspectRatio="xMidYMid slice">
+          <path class="shape-path" d=""/>
+        </svg>
+      </div>
+      <div class="grid-label"><span class="check-badge">✓</span>${shape.label}<span class="shape-suggest-tag">sugestão</span></div>
+    `;
+    cell.addEventListener('click', () => {
+      document.querySelectorAll('.grid-cell').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+      selectedShape = id;
+      showResult(id);
+    });
+    wrap.appendChild(cell);
+  });
+  gridBuilt = true;
+}
+
+function renderGridShapes(){
+  document.querySelectorAll('.grid-cell').forEach(cell => {
+    const id = cell.dataset.shape;
+    const remapped = remapPath(SHAPES[id].path, SHAPE_BBOX, FACE_BOX);
+    cell.querySelector('.shape-path').setAttribute('d', remapped);
+    cell.classList.toggle('suggested', shapeSuggestion?.best?.id === id);
+    if(id === selectedShape) cell.classList.add('selected');
+  });
+}
+
+function drawGridPhotos(){
+  document.querySelectorAll('.grid-stage canvas').forEach(cv => drawPhotoInto(cv));
+}
+
+function refreshGrid(){
+  if(!gridBuilt) buildGrid();
+  renderGridShapes();
+  drawGridPhotos();
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b===btn));
+    document.getElementById('carouselView').style.display = currentMode==='carousel' ? 'block':'none';
+    document.getElementById('gridView').style.display = currentMode==='grid' ? 'block':'none';
+    if(currentMode === 'grid') refreshGrid();
+    else drawPhoto();
+  });
+});
+
+function resetToUpload(){
+  loadedImg = null;
+  cropBox = null;
+  userPathD = '';
+  selectedShape = null;
+  contrastInfo = null;
+  selectedContrast = null;
+  faceProfile = null;
+  shapeSuggestion = null;
+  currentIdx = 0;
+  gridBuilt = false;
+  currentMode = 'carousel';
+  document.getElementById('fi').value = '';
+  document.getElementById('compareArea').style.display = 'none';
+  document.getElementById('resultBox').style.display = 'none';
+  document.getElementById('shapeSuggestionBox').style.display = 'none';
+  document.getElementById('contrastArea').style.display = 'none';
+  document.getElementById('contrastResultBox').style.display = 'none';
+  document.getElementById('contrastBanner').style.display = 'none';
+  document.querySelectorAll('.contrast-opt').forEach(b => b.classList.remove('selected'));
+  document.getElementById('status').style.display = 'none';
+  document.getElementById('ubox').style.display = 'block';
+  document.getElementById('gridWrap').innerHTML = '';
+  document.getElementById('carouselView').style.display = 'block';
+  document.getElementById('gridView').style.display = 'none';
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode==='carousel'));
+}
+
+window.addEventListener('resize', () => {
+  if(!loadedImg) return;
+  if(currentMode === 'grid') drawGridPhotos();
+  else drawPhoto();
+  if(document.getElementById('contrastArea').style.display === 'block'){
+    drawPhotoInto(document.getElementById('colorCanvas'));
+    drawPhotoInto(document.getElementById('grayCanvas'));
+  }
+});
+</script>
+</body>
+</html>
